@@ -9,6 +9,11 @@
     python gen_synthesis.py --topic "冥想"
     python gen_synthesis.py --moc "MOC-哲学知识整合" --depth 3
 
+说明：
+    --seed / --topic 可传「文件名(basename)」「卡片标题」或「别名」均可命中，
+    因为 vault 内增量卡文件名是「灵感-时间戳-N」而链接用标题，本脚本统一按
+    basename / 标题 / 别名 三者解析，避免标题≠文件名导致「找不到种子 / 图不连通」。
+
 输出：
     1) 终端打印邻域（按链接距离）与可用 MOC 列表
     2) 写入「综合笔记素材-<主题>.md」（所有邻域卡片原文，供 AI 扩写）
@@ -59,17 +64,51 @@ def parse_links(content):
     return [m.group(1).strip() for m in LINK_RE.finditer(content)]
 
 
-def build_graph(nodes):
+def strip_fm(c):
+    return re.sub(r"^---\n.*?\n---\n", "", c, flags=re.S).strip()
+
+
+def extract_title(content):
+    """从正文首个 H1 取卡片标题（frontmatter 之外）。"""
+    body = strip_fm(content)
+    m = re.search(r"^#\s+(.+?)\s*$", body, re.M)
+    return m.group(1).strip() if m else None
+
+
+def extract_aliases(content):
+    """解析 frontmatter 的 aliases: [a, b]。"""
+    m = re.search(r"^aliases:\s*(.*)$", content, re.M)
+    if not m:
+        return []
+    raw = m.group(1).strip().strip("[").strip("]").strip()
+    if not raw:
+        return []
+    return [a.strip().strip('"').strip("'") for a in raw.split(",") if a.strip()]
+
+
+def build_resolver(nodes):
+    """建立 名称变体 -> basename 映射：basename / 标题 / 别名 都指向同一文件。"""
+    r = {}
+    for base, c in nodes.items():
+        r[base] = base
+        t = extract_title(c)
+        if t and t not in r:
+            r[t] = base
+        for al in extract_aliases(c):
+            if al not in r:
+                r[al] = base
+    return r
+
+
+def build_graph(nodes, resolver):
+    """按 basename 建图；链接目标先经 resolver 映射到 basename（标题/别名也连通）。"""
     g = defaultdict(set)
     for name, c in nodes.items():
         for link in parse_links(c):
-            if link in nodes:
-                g[name].add(link)
+            target = resolver.get(link)
+            if target:
+                g[name].add(target)
     return g
-
-
-def strip_fm(c):
-    return re.sub(r"^---\n.*?\n---\n", "", c, flags=re.S).strip()
 
 
 def extract_card(name, content):
@@ -110,14 +149,20 @@ def register_to_index(note_name):
     print(f"[首页] 已注册 {note_name} 到「综合笔记」区块。")
 
 
-def resolve_seeds(args, nodes):
+def resolve_seeds(args, nodes, resolver):
+    """seed/topic 可传 basename / 标题 / 别名；topic 还匹配正文。"""
     if args.moc:
-        return [args.moc] if args.moc in nodes else []
+        return [args.moc] if args.moc in resolver else []
     if args.seed:
-        return [args.seed] if args.seed in nodes else []
+        return [resolver[args.seed]] if args.seed in resolver else []
     if args.topic:
         topic = args.topic
-        return [n for n, c in nodes.items() if topic in n or topic in c]
+        found = set()
+        for base, c in nodes.items():
+            title = extract_title(c) or ""
+            if topic in base or topic in title or topic in c:
+                found.add(base)
+        return sorted(found)
     return []
 
 
@@ -159,10 +204,11 @@ def main():
         return
 
     nodes = all_nodes()
-    g = build_graph(nodes)
-    seeds = resolve_seeds(args, nodes)
+    resolver = build_resolver(nodes)
+    g = build_graph(nodes, resolver)
+    seeds = resolve_seeds(args, nodes, resolver)
     if not seeds:
-        print("[错误] 未找到种子。检查 --moc/--seed 名称，或 --topic 关键词。")
+        print("[错误] 未找到种子。可传 --moc（MOC 文件名）/ --seed（卡片标题或文件名）/ --topic（关键词）。")
         print("可用 MOC：", [n for n in nodes if n.startswith(MOC_PREFIX)])
         return
 
