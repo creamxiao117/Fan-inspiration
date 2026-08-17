@@ -9,19 +9,10 @@
     python gen_synthesis.py --topic "冥想"
     python gen_synthesis.py --moc "MOC-哲学知识整合" --depth 3
 
-说明：
-    --seed / --topic 可传「文件名(basename)」「卡片标题」或「别名」均可命中，
-    因为 vault 内增量卡文件名是「灵感-时间戳-N」而链接用标题，本脚本统一按
-    basename / 标题 / 别名 三者解析，避免标题≠文件名导致「找不到种子 / 图不连通」。
-
 输出：
     1) 终端打印邻域（按链接距离）与可用 MOC 列表
     2) 写入「综合笔记素材-<主题>.md」（所有邻域卡片原文，供 AI 扩写）
     3) 打印扩写提示
-
-反向登记：
-    python gen_synthesis.py --register "综合笔记-自我认知与心智成长"
-    把综合笔记链接追加到首页「综合笔记」区块（幂等）。
 """
 
 import argparse
@@ -29,7 +20,6 @@ import os
 import re
 from collections import defaultdict, deque
 
-# ---------- 路径配置（迁移到其他机器请修改此处）----------
 VAULT_DIR = r"D:/AIwork/20260811-Fan-LingGan/灵感知识库"
 INDEX_FILE = os.path.join(VAULT_DIR, "00-首页索引.md")
 SKIP = {"AGENTS.md", "CHARTER.md", "WORK.md", "RUNLOG.md", "00-首页索引.md",
@@ -64,51 +54,17 @@ def parse_links(content):
     return [m.group(1).strip() for m in LINK_RE.finditer(content)]
 
 
-def strip_fm(c):
-    return re.sub(r"^---\n.*?\n---\n", "", c, flags=re.S).strip()
-
-
-def extract_title(content):
-    """从正文首个 H1 取卡片标题（frontmatter 之外）。"""
-    body = strip_fm(content)
-    m = re.search(r"^#\s+(.+?)\s*$", body, re.M)
-    return m.group(1).strip() if m else None
-
-
-def extract_aliases(content):
-    """解析 frontmatter 的 aliases: [a, b]。"""
-    m = re.search(r"^aliases:\s*(.*)$", content, re.M)
-    if not m:
-        return []
-    raw = m.group(1).strip().strip("[").strip("]").strip()
-    if not raw:
-        return []
-    return [a.strip().strip('"').strip("'") for a in raw.split(",") if a.strip()]
-
-
-def build_resolver(nodes):
-    """建立 名称变体 -> basename 映射：basename / 标题 / 别名 都指向同一文件。"""
-    r = {}
-    for base, c in nodes.items():
-        r[base] = base
-        t = extract_title(c)
-        if t and t not in r:
-            r[t] = base
-        for al in extract_aliases(c):
-            if al not in r:
-                r[al] = base
-    return r
-
-
-def build_graph(nodes, resolver):
-    """按 basename 建图；链接目标先经 resolver 映射到 basename（标题/别名也连通）。"""
+def build_graph(nodes):
     g = defaultdict(set)
     for name, c in nodes.items():
         for link in parse_links(c):
-            target = resolver.get(link)
-            if target:
-                g[name].add(target)
+            if link in nodes:
+                g[name].add(link)
     return g
+
+
+def strip_fm(c):
+    return re.sub(r"^---\n.*?\n---\n", "", c, flags=re.S).strip()
 
 
 def extract_card(name, content):
@@ -149,20 +105,14 @@ def register_to_index(note_name):
     print(f"[首页] 已注册 {note_name} 到「综合笔记」区块。")
 
 
-def resolve_seeds(args, nodes, resolver):
-    """seed/topic 可传 basename / 标题 / 别名；topic 还匹配正文。"""
+def resolve_seeds(args, nodes):
     if args.moc:
-        return [args.moc] if args.moc in resolver else []
+        return [args.moc] if args.moc in nodes else []
     if args.seed:
-        return [resolver[args.seed]] if args.seed in resolver else []
+        return [args.seed] if args.seed in nodes else []
     if args.topic:
         topic = args.topic
-        found = set()
-        for base, c in nodes.items():
-            title = extract_title(c) or ""
-            if topic in base or topic in title or topic in c:
-                found.add(base)
-        return sorted(found)
+        return [n for n, c in nodes.items() if topic in n or topic in c]
     return []
 
 
@@ -189,6 +139,34 @@ def collect_neighbors(g, seeds, max_depth):
     return sorted(best.items(), key=lambda x: (x[1], x[0]))
 
 
+def register_backlinks(note_name, material):
+    """把综合笔记链接反向补到素材原子卡「关联」区块（幂等）。"""
+    n_ok = 0
+    for name in material:
+        if name.startswith(MOC_PREFIX):
+            continue
+        p = os.path.join(VAULT_DIR, name + ".md")
+        if not os.path.exists(p):
+            continue
+        with open(p, encoding="utf-8") as f:
+            content = f.read()
+        link = f"- [[{note_name}]]"
+        if link in content:
+            continue
+        anchor = "## 关联"
+        if anchor in content:
+            idx = content.index(anchor) + len(anchor)
+            nl = content.find("\n", idx)
+            insert_at = nl + 1 if nl != -1 else len(content)
+            content = content[:insert_at] + link + "\n" + content[insert_at:]
+        else:
+            content = content.rstrip() + f"\n\n{anchor}\n{link}\n"
+        with open(p, "w", encoding="utf-8") as f:
+            f.write(content)
+        n_ok += 1
+    print(f"[回链] 已给 {n_ok} 张素材卡补 [[{note_name}]] 链接。")
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--moc")
@@ -197,18 +175,34 @@ def main():
     ap.add_argument("--depth", type=int, default=2)
     ap.add_argument("--out")
     ap.add_argument("--register", help="把指定综合笔记名注册到首页索引（反向登记产出端）")
+    ap.add_argument("--backlink", help="从指定综合笔记（须已存在）正文提取 [[引用]]，"
+                                       "反向补链到素材卡「关联」区块（幂等）")
     args = ap.parse_args()
+
+    if args.backlink:
+        note = args.backlink
+        note_path = os.path.join(VAULT_DIR, note + ".md")
+        if not os.path.exists(note_path):
+            print(f"[回链] {note}.md 不存在：请先写完文章再回链。")
+            return
+        with open(note_path, encoding="utf-8") as f:
+            note_content = f.read()
+        material = [
+            t for t in re.findall(r"\[\[([^\[\]]+?)\]\]", note_content)
+            if t != note and os.path.exists(os.path.join(VAULT_DIR, t + ".md"))
+        ]
+        register_backlinks(note, material)
+        return
 
     if args.register:
         register_to_index(args.register)
         return
 
     nodes = all_nodes()
-    resolver = build_resolver(nodes)
-    g = build_graph(nodes, resolver)
-    seeds = resolve_seeds(args, nodes, resolver)
+    g = build_graph(nodes)
+    seeds = resolve_seeds(args, nodes)
     if not seeds:
-        print("[错误] 未找到种子。可传 --moc（MOC 文件名）/ --seed（卡片标题或文件名）/ --topic（关键词）。")
+        print("[错误] 未找到种子。检查 --moc/--seed 名称，或 --topic 关键词。")
         print("可用 MOC：", [n for n in nodes if n.startswith(MOC_PREFIX)])
         return
 

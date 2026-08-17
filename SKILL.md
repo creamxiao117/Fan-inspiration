@@ -32,7 +32,8 @@ description: 把 iPhone 语音转文字产生的灵感碎片（带错别字、�
 每个脚本顶部有路径常量，**迁移到其他机器只改这两处**：
 
 - `scripts/import_new.py`：`ICLOUD_DIR`（语音源目录）、`VAULT_DIR`（vault 根）
-- `scripts/gen_synthesis.py` / `scripts/refine_pending.py` / `scripts/lint_vault.py`：`VAULT_DIR`
+- `scripts/gen_synthesis.py` / `scripts/refine_pending.py` / `scripts/lint_vault.py` / `scripts/vault_mcp.py`：`VAULT_DIR`
+- `scripts/vault_mcp.py`：也可用环境变量 `VAULT_DIR` 覆盖（优先于文件内常量）
 
 ⚠️ `import_new.py` 的 `MOC_KEYWORDS` 的 **key 必须和 vault 内 MOC 文件名严格一致**，否则分类链接断链。
 ⚠️ vault 根需有 `schema.md`（随技能附带，复制到 vault 根即可）——import/lint 都按它执行。
@@ -96,12 +97,25 @@ python scripts/gen_synthesis.py --moc "MOC-自我认知与心智成长"   # 以 
 python scripts/gen_synthesis.py --seed "像水一样"                 # 以单卡为种子
 python scripts/gen_synthesis.py --topic "修行"                   # 以关键词为种子
 python scripts/gen_synthesis.py --register "综合笔记-xxx"        # 反向注册到首页（幂等）
+python scripts/gen_synthesis.py --backlink "综合笔记-xxx"        # 文章写完后，反向补链到素材卡「关联」区块（幂等）
 ```
 注：`--seed` / `--topic` 可传「标题 / 文件名(basename) / 别名」任意一种，脚本统一按三者解析
 （vault 内增量卡文件名是 `灵感-时间戳-N` 而链接用标题，故必须标题感知，否则「找不到种子 / 图不连通」）。
+`--backlink` 要求笔记已存在：从文章正文提取 `[[引用]]` 反向补链到素材卡（避免补到不存在的笔记造成死链）。
 
 逻辑：沿 `[[双向链接]]` 做图 BFS 收集邻域卡片 → 按链接距离生成大纲 → 打包素材文件 →
 **AI 扩写成连贯文章（脚本不调任何 API）** → 文内 `[[回链原卡]]`。这是 Zettelkasten 的「表达」环节，闭环收口。
+
+### 阶段 6 · AI 直查（MCP server，`scripts/vault_mcp.py`）
+
+```bash
+# 注册到 MCP 客户端（如 ~/.workbuddy/mcp.json）：
+python scripts/vault_mcp.py   # stdio JSON-RPC，零依赖；VAULT_DIR 环境变量可覆盖 vault
+```
+
+5 个工具：`search`（关键词搜卡）/ `read`（按文件名/别名/标题读卡）/ `list`（按 type 过滤列卡）/
+`graph`（wikilink 图：节点+入链数+边）/ `lint`（体检，复用 lint_vault 规则）。
+WorkBuddy 在「连接器管理 → 自定义连接」Trust 后即可在会话里直接搜知识库。
 
 ## 红线 / 已知坑
 
@@ -120,12 +134,14 @@ python scripts/gen_synthesis.py --register "综合笔记-xxx"        # 反向注
 | `schema.md` | 知识库规则（卡片类型表 + frontmatter 规范 + 命名规则），复制到 vault 根 |
 | `scripts/import_new.py` | 增量导入（两步 CoT）：去重 / 分类 / LLM 纠错 / 原子卡 / 关联 / MOC 反向注册 |
 | `scripts/lint_vault.py` | 知识库体检：死链 / 孤立卡 / frontmatter 规范检查与 `--fix` 补全，写 log.md |
-| `scripts/gen_synthesis.py` | 综合笔记生成器：邻域收集 + 大纲 + 首页幂等注册 |
+| `scripts/gen_synthesis.py` | 综合笔记生成器：邻域收集 + 大纲 + 首页注册（`--register`）+ 素材卡回链（`--backlink`） |
 | `scripts/refine_pending.py` | 待校卡发现（`--list`）与标记（`--done-all`） |
+| `scripts/rename_drafts.py` | 一次性迁移：把 `灵感-时间戳-N.md` 草稿卡改名为语义标题（勿重跑） |
+| `scripts/vault_mcp.py` | MCP server（stdio JSON-RPC 零依赖）：search / read / list / graph / lint |
 
 ## 验证状态
 
-- ruff（项目 `pyproject.toml` 红线配置）：四脚本 `All checks passed!`
+- ruff（项目 `pyproject.toml` 红线配置）：全部受检脚本 `All checks passed!`
 - mypy 务实档：`Success`
-- 真实闭环跑通：导入（LLM/规则）→ 体检全绿 → 语义纠错 → 已校 → 连网 → 成文 → 首页可发现
-- 2026-08-17：38 文件 lint 通过；import_new.py 增加两步 CoT（LLM 可选）+ schema 对齐 frontmatter；新增 lint_vault.py 与 schema.md
+- 真实闭环跑通：导入（LLM/规则）→ 体检全绿 → 语义纠错 → 已校 → 连网 → 成文 → 首页/素材卡回链 → MCP 直查
+- 2026-08-17：R4（schema + lint + 两步 CoT）+ R5（草稿卡改名收尾 + 综合笔记 backlink + MCP server）
