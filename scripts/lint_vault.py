@@ -41,6 +41,7 @@ REQUIRED_FIELDS: dict[str, list[str]] = {
     "guide": ["type", "title"],
     "index": ["type", "title"],
     "schema": ["type", "title"],
+    "sourcenote": ["type", "title", "source"],  # 外部文章提炼卡：source 回链 raw 原文
 }
 VALID_TYPES = set(REQUIRED_FIELDS)
 

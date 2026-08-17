@@ -216,7 +216,9 @@ def main():
         print(f"  (d{d}) {n}")
 
     out_path = args.out or os.path.join(KNOWLEDGE_DIR, f"综合笔记素材-{theme}.md")
-    lines = [f"# 综合笔记素材：{theme}\n"]
+    out_name = os.path.basename(out_path)[:-3]
+    lines = [f"---\ntype: synthesis\ntitle: {out_name}\n---\n"]
+    lines.append(f"# 综合笔记素材：{theme}\n")
     lines.append(f"种子：{seeds}")
     lines.append(f"邻域卡片（按链接距离）：{len(material)} 张\n")
     lines.append("## 大纲草案")

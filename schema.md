@@ -19,6 +19,7 @@ tags: [规则, schema]
 | `guide` | `使用指南` | 使用说明 |
 | `index` | `00-首页索引` | 首页索引 |
 | `schema` | `schema` / `purpose` | 规则与方向文档 |
+| `sourcenote` | （放 `wiki/sources/`） | 外部文章提炼卡：必填 `source: [[raw/sources/原文]]` 回链 |
 
 ## 一·五、目录结构（vault 根 = 项目根）
 
