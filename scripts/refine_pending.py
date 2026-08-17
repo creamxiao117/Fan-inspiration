@@ -1,39 +1,46 @@
 """
 待校卡片发现与标记工具（语音语义纠错工作流）
 ==========================================
-import_new.py 生成的卡片默认带 `待校` 标签（语音错别字靠语义级校对）。
+import_new.py 生成的原子卡默认带 `status: 待校`（语音错别字靠语义级校对）。
 本工具负责：
-  --list      列出所有待校卡片及其原始语音，供 AI 语义校对
-  --done-all  校对完成后批量翻转标签（待校 -> 已校）
+  --list   列出所有待校原子卡及其原始语音，供 AI 语义校对
+  --done   校对完成后翻转状态（待校 -> 已校）
 
 真实语义纠错由 AI 在同一轮「导入新灵感」中完成：读新卡 → 修正错别字
-→ 改写「修正」段 → 跑 --done-all 翻转标签。脚本只做机械列举/标记。
+→ 改写「修正」段 → 跑 --done 翻转标签。脚本只做机械列举/标记。
 
-注意：勿用 --done "中文名"，中文文件名经 Git Bash 传参到 Python 会编码错乱
-导致按名找不到文件。直接 --done-all 批量翻转更稳。
+判定规则（与 schema.md / lint_vault.py 对齐）：
+  - 只看 type=atom 的原子卡；MOC/首页/指南/schema/log 等非卡片不参与
+  - 待校 = frontmatter `status: 待校` 或 tags 含「待校」；不再全文匹配（避免误报）
 
 用法：
     python refine_pending.py --list
-    python refine_pending.py --done-all
+    python refine_pending.py --done "两套系统"
 """
 
 import argparse
 import os
 import re
 
-# ---------- 路径配置（迁移到其他机器请修改此处）----------
-VAULT_DIR = r"D:/AIwork/20260811-Fan-LingGan/灵感知识库"
-SKIP = {"AGENTS.md", "CHARTER.md", "WORK.md", "RUNLOG.md",
-        "00-首页索引.md", "收件箱.md", "使用指南.md"}
+import lint_vault as lv  # 复用 frontmatter 解析/类型推断（同项目根）
+
+VAULT_DIR = lv.VAULT_DIR
 
 
 def card_files():
-    for fn in os.listdir(VAULT_DIR):
-        if not fn.lower().endswith(".md"):
-            continue
-        if fn in SKIP or fn.startswith("MOC-"):
-            continue
-        yield fn
+    yield from lv.md_files()
+
+
+def is_pending(fn, content) -> bool:
+    """是否待校原子卡：type=atom 且 status/tags 标注待校。"""
+    fm = lv.parse_frontmatter(content)
+    ftype = str(fm.get("type") or lv.infer_type(fn))
+    if ftype != "atom":
+        return False
+    if fm.get("status") == "待校":
+        return True
+    tags = fm.get("tags")
+    return isinstance(tags, list) and any("待校" in str(t) for t in tags)
 
 
 def get_raw_voice(content):
@@ -47,10 +54,10 @@ def cmd_list():
         p = os.path.join(VAULT_DIR, fn)
         with open(p, encoding="utf-8", errors="replace") as f:
             c = f.read()
-        if "待校" in c:
+        if is_pending(fn, c):
             found.append((fn[:-3], get_raw_voice(c)))
     if not found:
-        print("[无待校] vault 内没有待校对的卡片。")
+        print("[无待校] vault 内没有待校对的原子卡。")
         return
     print(f"[待校卡片 {len(found)} 张]")
     for name, voice in found:
@@ -58,15 +65,19 @@ def cmd_list():
         print(f"  原始语音：{voice[:160]}")
 
 
-def cmd_done(all_=False):
+def cmd_done(name=None, all_=False):
     targets = []
     if all_:
         for fn in card_files():
             p = os.path.join(VAULT_DIR, fn)
             with open(p, encoding="utf-8", errors="replace") as f:
                 c = f.read()
-            if "待校" in c:
+            if is_pending(fn, c):
                 targets.append(fn)
+    elif name:
+        target = name if name.endswith(".md") else name + ".md"
+        targets = [target]
+
     if not targets:
         print("[无待校] 没有需要标记的卡片。")
         return
@@ -96,7 +107,6 @@ if __name__ == "__main__":
     if a.done_all:
         cmd_done(all_=True)
     elif a.done:
-        # 仍保留单卡入口，但推荐用 --done-all 规避中文名编码问题
         cmd_done(name=a.done)
     else:
         cmd_list()

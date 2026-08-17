@@ -74,16 +74,22 @@ python scripts/lint_vault.py --fix  # 按 schema 补全可推断字段，摘要�
 ### 阶段 3 · 语义纠错（`scripts/refine_pending.py` + AI 同轮修正）
 
 ```bash
-python scripts/refine_pending.py --list      # 列出待校卡及其原始语音
+python scripts/refine_pending.py --list      # 列出待校原子卡及其原始语音
 ```
 
-AI 读新卡 → 结合语境修正语音错别字（如 像睡→像水、行式→形势、若者→弱者）→ 改写「修正」段 → 补延伸与关联 → 标记已校：
+判定规则（与 schema.md 对齐）：只看 `type: atom` 卡片；待校 = frontmatter `status: 待校` 或 tags 含「待校」；
+**不再全文匹配「待校」两字**（曾把 schema.md 规则说明误报成待校卡）。
+
+AI 读待校卡 → 结合语境修正语音错别字（如 像睡→像水、行式→形势、若者→弱者）→ 改写「修正」段 → 补延伸与关联 → 标记已校：
 
 ```bash
 python scripts/refine_pending.py --done-all  # 批量翻转 待校→已校
 ```
 
 ⚠️ **坑**：`--done "中文名"` 单卡入口未实现（`--done` 调用签名不匹配会直接报错），统一用 `--done-all` 整批翻转最稳。
+
+⚠️ **历史坑（2026-08-17 已修）**：早期导入的卡内容已校订但标题仍是语音误识（如 `把把人生定义为体验的旅程去享受这`、
+`Ive want to lean`）——改标题用 `scripts/revise_drafts.py`（一次性映射表，勿重跑），会同步文件名/frontmatter/全库 wikilink。
 
 ### 阶段 4 · 连接（自动 + 人工）
 
@@ -135,8 +141,9 @@ WorkBuddy 在「连接器管理 → 自定义连接」Trust 后即可在会话�
 | `scripts/import_new.py` | 增量导入（两步 CoT）：去重 / 分类 / LLM 纠错 / 原子卡 / 关联 / MOC 反向注册 |
 | `scripts/lint_vault.py` | 知识库体检：死链 / 孤立卡 / frontmatter 规范检查与 `--fix` 补全，写 log.md |
 | `scripts/gen_synthesis.py` | 综合笔记生成器：邻域收集 + 大纲 + 首页注册（`--register`）+ 素材卡回链（`--backlink`） |
-| `scripts/refine_pending.py` | 待校卡发现（`--list`）与标记（`--done-all`） |
+| `scripts/refine_pending.py` | 待校卡发现（`--list`，按 status/tags 精准判定）与标记（`--done-all`） |
 | `scripts/rename_drafts.py` | 一次性迁移：把 `灵感-时间戳-N.md` 草稿卡改名为语义标题（勿重跑） |
+| `scripts/revise_drafts.py` | 一次性迁移：误识标题卡校订（映射表改标题+文件名+全库链接，勿重跑） |
 | `scripts/vault_mcp.py` | MCP server（stdio JSON-RPC 零依赖）：search / read / list / graph / lint |
 
 ## 验证状态
