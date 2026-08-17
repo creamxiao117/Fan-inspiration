@@ -123,6 +123,30 @@ python scripts/vault_mcp.py   # stdio JSON-RPC，零依赖；VAULT_DIR 环境变
 `graph`（wikilink 图：节点+入链数+边）/ `lint`（体检，复用 lint_vault 规则）。
 WorkBuddy 在「连接器管理 → 自定义连接」Trust 后即可在会话里直接搜知识库。
 
+### 阶段 7 · 网页文章剪藏（`scripts/clip_article.py` → raw/sources/）
+
+```bash
+python scripts/clip_article.py --url "https://example.com/article"  # 静态页抓取转 MD
+python scripts/clip_article.py --html "page.html"                    # 浏览器复制保存的 HTML
+python scripts/clip_article.py --md "粘贴的 markdown"                # 直接存
+```
+
+产出 `raw/sources/YYYY-MM-DD-标题.md`（`type: raw` 原始材料，不可变）。加工：读原文 → 提炼成
+`wiki/sources/` 提炼卡（`type: sourcenote`，`source: [[raw/sources/原文]]` 回链）→ 连入 MOC。
+HTML→MD 用标准库 html.parser 实现（h1-h6/p/a/img/列表/引用/代码块/表格），零依赖。
+
+## 目录结构（vault）
+
+```
+vault/
+├── purpose.md / schema.md        # 方向与规则（LLM/工具每次读取）
+├── 00-首页索引.md / 收件箱.md / 使用指南.md / log.md
+├── MOC-*.md / 原子卡 / 综合笔记-*
+├── raw/sources/                  # 外部文章剪藏（不可变，lint 豁免卡片规范）
+├── raw/assets/                   # 图片媒体
+└── wiki/sources/                 # 文章提炼卡（type: sourcenote）
+```
+
 ## 红线 / 已知坑
 
 - 增量卡文件名是 `灵感-时间戳-N`、但链接/MOC 用标题 → 必须标题感知（已做）：`--seed/--topic` 传标题/文件名/别名均可命中；Obsidian 侧靠卡片 `aliases:[标题]` 解析 `[[标题]]`；lint 死链判定同样认 aliases
@@ -145,6 +169,7 @@ WorkBuddy 在「连接器管理 → 自定义连接」Trust 后即可在会话�
 | `scripts/rename_drafts.py` | 一次性迁移：把 `灵感-时间戳-N.md` 草稿卡改名为语义标题（勿重跑） |
 | `scripts/revise_drafts.py` | 一次性迁移：误识标题卡校订（映射表改标题+文件名+全库链接，勿重跑） |
 | `scripts/vault_mcp.py` | MCP server（stdio JSON-RPC 零依赖）：search / read / list / graph / lint |
+| `scripts/clip_article.py` | 网页文章剪藏：URL/HTML/Markdown → raw/sources/（零依赖 HTML→MD） |
 
 ## 验证状态
 

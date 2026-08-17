@@ -127,12 +127,12 @@ def make_title(text: str) -> str:
 
 
 def collect_existing_cards() -> list:
-    """扫描 vault，返回已有原子卡标题（排除 MOC/首页/收件箱/说明/骨架文件）。"""
+    """扫描 vault，返回已有原子卡标题（排除 MOC/首页/收件箱/说明/骨架/raw-wiki 子目录）。"""
     cards = []
     for fn in os.listdir(VAULT_DIR):
         if not fn.lower().endswith(".md"):
             continue
-        if fn in SKIP_FILES or fn.startswith("MOC-"):
+        if fn in SKIP_FILES or fn.startswith("MOC-") or os.path.isdir(os.path.join(VAULT_DIR, fn)):
             continue
         cards.append(fn[:-3])
     return cards

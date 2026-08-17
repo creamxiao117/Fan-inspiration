@@ -44,17 +44,18 @@ EXTRA_FIXED = ["type", "title", "tags", "date", "sources", "status"]
 
 def infer_type(fname: str) -> str:
     """按文件名前缀推断类型（与 schema.md 三、命名规则一致）。"""
-    if fname.startswith("MOC-") or fname.startswith("MOC·"):
+    base = os.path.basename(fname)
+    if base.startswith("MOC-") or base.startswith("MOC·"):
         return "moc"
-    if fname.startswith("综合笔记素材-") or fname.startswith("综合笔记-"):
+    if base.startswith("综合笔记素材-") or base.startswith("综合笔记-"):
         return "synthesis"
-    if fname.startswith("收件箱"):
+    if base.startswith("收件箱"):
         return "inbox"
-    if fname.startswith("使用指南"):
+    if base.startswith("使用指南"):
         return "guide"
-    if fname.startswith("00-"):
+    if base.startswith("00-"):
         return "index"
-    if fname == "schema.md":
+    if base in ("schema.md", "purpose.md"):
         return "schema"
     return "atom"
 
@@ -118,14 +119,25 @@ def extract_links(content: str) -> list[str]:
     return targets
 
 
-SKIP_FILES = {"log.md"}  # 操作日志，非卡片
+SKIP_FILES = {"log.md", "README.md"}  # 操作日志/目录说明，非卡片
+RAW_PREFIX = "raw"  # raw/ 子目录 = 原始材料（豁免卡片规范检查，仅查死链）
 
 
 def md_files() -> list[str]:
-    return sorted(
-        fn for fn in os.listdir(VAULT_DIR)
-        if fn.lower().endswith(".md") and fn not in SKIP_FILES
-    )
+    """递归扫描 vault 下全部 .md，返回相对路径（含 raw/、wiki/ 子目录）。"""
+    out = []
+    for root, dirs, files in os.walk(VAULT_DIR):
+        dirs[:] = [d for d in dirs if not d.startswith(".")]
+        for fn in files:
+            if fn.lower().endswith(".md") and os.path.basename(fn) not in SKIP_FILES:
+                rel = os.path.relpath(os.path.join(root, fn), VAULT_DIR)
+                out.append(rel.replace("\\", "/"))
+    return sorted(out)
+
+
+def is_raw(rel_path: str) -> bool:
+    """是否原始材料文件（raw/ 子目录下）。"""
+    return rel_path.split("/")[0] == RAW_PREFIX
 
 
 def has_extension_section(content: str) -> bool:
@@ -184,7 +196,9 @@ def build_fix_content(fn: str, ftype: str, name: str, content: str, fm: dict) ->
 
 
 def verify_file(fn: str, name: str, content: str, inlinks: dict) -> list:
-    """复查单文件，返回问题列表。"""
+    """复查单文件，返回问题列表。raw/ 原始材料豁免卡片规范检查。"""
+    if is_raw(fn):
+        return []
     out: list[str] = []
     fm2 = parse_frontmatter(content)
     if not fm2:
@@ -203,10 +217,15 @@ def verify_file(fn: str, name: str, content: str, inlinks: dict) -> list:
 
 
 def build_index(files: list, contents: dict) -> tuple[dict, dict]:
-    """构建链接解析表（文件名/aliases → 实际文件）与入链统计（供孤立卡判定）。"""
+    """构建链接解析表（文件名/aliases → 实际文件）与入链统计（供孤立卡判定）。
+
+    链接名 key 同时注册 basename（Obsidian 默认按文件名解析）与相对路径两种形式。
+    """
     target_file: dict[str, str] = {}
     for fn in files:
-        target_file[fn[:-3]] = fn
+        base = os.path.basename(fn)[:-3]
+        target_file[base] = fn
+        target_file[fn[:-3]] = fn  # 路径形式 [[raw/sources/xxx]]
         fm0 = parse_frontmatter(contents[fn])
         aliases = fm0.get("aliases")
         if isinstance(aliases, list):
@@ -220,7 +239,7 @@ def build_index(files: list, contents: dict) -> tuple[dict, dict]:
         for t in extract_links(content):
             real = target_file.get(t)
             if real is not None and real != fn:
-                real_noext = real[:-3] if real.endswith(".md") else real
+                real_noext = os.path.basename(real)[:-3]
                 inlinks[real_noext] = inlinks.get(real_noext, 0) + 1
     return target_file, inlinks
 
@@ -242,7 +261,7 @@ def main() -> int:
     fixed_counts: dict[str, int] = {}
 
     for fn in files:
-        name = fn[:-3]
+        name = os.path.basename(fn)[:-3]
         content = contents[fn]
         ftype = infer_type(fn)
         fm = parse_frontmatter(content)
@@ -252,8 +271,8 @@ def main() -> int:
             if t != name and t not in target_file:
                 problems.append(f"[死链] {fn}: 链接 [[{t}]] 不存在")
 
-        # --- frontmatter 缺失 / 补全 ---
-        if args.fix:
+        # --- frontmatter 缺失 / 补全（raw 原始材料豁免）---
+        if args.fix and not is_raw(fn):
             new_content, n = build_fix_content(fn, ftype, name, content, fm)
             if new_content:
                 contents[fn] = new_content

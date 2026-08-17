@@ -18,7 +18,18 @@ tags: [规则, schema]
 | `inbox` | `收件箱` | 新捕获碎片的暂存区 |
 | `guide` | `使用指南` | 使用说明 |
 | `index` | `00-首页索引` | 首页索引 |
-| `schema` | `schema` | 本文件 |
+| `schema` | `schema` / `purpose` | 规则与方向文档 |
+
+## 一·五、目录结构（外部材料区）
+
+| 目录 | 用途 | 规则 |
+|---|---|---|
+| `raw/sources/` | 外部文章剪藏（原始 Markdown） | 不可变；`type: raw`；命名 `YYYY-MM-DD-标题.md`；由 `clip_article.py` 写入 |
+| `raw/assets/` | 图片等媒体附件 | 不可变 |
+| `wiki/sources/` | 文章提炼卡（加工产物） | `type: sourcenote`，frontmatter 必填 `source: [[raw/sources/原文]]` 回链 |
+
+- raw/ 是**原始材料**，lint 豁免卡片规范检查（仅查死链），不参与孤立卡判定
+- 外部知识要长进体系：剪藏进 `raw/sources/` → 读后提炼成 `wiki/sources/` 提炼卡或原子卡 → 连入 MOC
 
 ## 二、frontmatter 规范（所有卡片必填）
 
