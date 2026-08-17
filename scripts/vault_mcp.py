@@ -24,7 +24,7 @@ sys.path.insert(0, _HERE)  # 与 lint_vault.py 同目录（技能 scripts/ 布�
 sys.path.insert(0, os.path.dirname(_HERE))  # lint_vault.py 在上级（项目根布局）
 import lint_vault as lv  # noqa: E402 — 需先改 sys.path 才能定位（兼容项目/技能两种布局）
 
-VAULT_DIR = os.environ.get("VAULT_DIR", r"D:/AIwork/20260811-Fan-LingGan/灵感知识库")
+VAULT_DIR = os.environ.get("VAULT_DIR", r"D:/AIwork/20260811-Fan-LingGan")  # vault 根
 PROTOCOL_VERSION = "2024-11-05"
 SUMMARY_LEN = 220
 

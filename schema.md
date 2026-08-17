@@ -20,16 +20,21 @@ tags: [规则, schema]
 | `index` | `00-首页索引` | 首页索引 |
 | `schema` | `schema` / `purpose` | 规则与方向文档 |
 
-## 一·五、目录结构（外部材料区）
+## 一·五、目录结构（vault 根 = 项目根）
 
-| 目录 | 用途 | 规则 |
-|---|---|---|
-| `raw/sources/` | 外部文章剪藏（原始 Markdown） | 不可变；`type: raw`；命名 `YYYY-MM-DD-标题.md`；由 `clip_article.py` 写入 |
-| `raw/assets/` | 图片等媒体附件 | 不可变 |
-| `wiki/sources/` | 文章提炼卡（加工产物） | `type: sourcenote`，frontmatter 必填 `source: [[raw/sources/原文]]` 回链 |
+Obsidian 打开的是项目根 `D:\AIwork\20260811-Fan-LingGan\`，全部规则文件在根，知识卡在子目录：
+
+| 位置 | 内容 |
+|---|---|
+| vault 根（`*.md`） | `schema.md` / `purpose.md` / `使用指南.md` / `00-首页索引.md` / `收件箱.md` / `log.md` |
+| `灵感知识库/` | 知识主体：MOC / 原子卡 / 综合笔记（工具读写此目录） |
+| `raw/sources/` | 外部文章剪藏（原始 Markdown）——不可变；`type: raw`；命名 `YYYY-MM-DD-标题.md`；由 `clip_article.py` / Web Clipper 写入 |
+| `raw/assets/` | 图片等媒体附件——不可变 |
+| `wiki/sources/` | 文章提炼卡（加工产物）——`type: sourcenote`，frontmatter 必填 `source: [[raw/sources/原文]]` 回链 |
 
 - raw/ 是**原始材料**，lint 豁免卡片规范检查（仅查死链），不参与孤立卡判定
 - 外部知识要长进体系：剪藏进 `raw/sources/` → 读后提炼成 `wiki/sources/` 提炼卡或原子卡 → 连入 MOC
+- 项目骨架文档（AGENTS/CHARTER/WORK/RUNLOG/overview）与一次性整理稿不参与 lint 检查
 
 ## 二、frontmatter 规范（所有卡片必填）
 

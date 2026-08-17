@@ -27,7 +27,7 @@ import urllib.request
 from datetime import datetime
 from html.parser import HTMLParser
 
-VAULT_DIR = r"D:/AIwork/20260811-Fan-LingGan/灵感知识库"
+VAULT_DIR = r"D:/AIwork/20260811-Fan-LingGan"  # vault 根
 RAW_DIR = os.path.join(VAULT_DIR, "raw", "sources")
 
 HEADING_LEVELS = {"h1": 1, "h2": 2, "h3": 3, "h4": 4, "h5": 5, "h6": 6}

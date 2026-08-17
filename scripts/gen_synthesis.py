@@ -20,7 +20,8 @@ import os
 import re
 from collections import defaultdict, deque
 
-VAULT_DIR = r"D:/AIwork/20260811-Fan-LingGan/灵感知识库"
+VAULT_DIR = r"D:/AIwork/20260811-Fan-LingGan"  # vault 根
+KNOWLEDGE_DIR = os.path.join(VAULT_DIR, "灵感知识库")  # 原子卡/MOC/综合笔记所在
 INDEX_FILE = os.path.join(VAULT_DIR, "00-首页索引.md")
 SKIP = {"AGENTS.md", "CHARTER.md", "WORK.md", "RUNLOG.md", "00-首页索引.md",
         "收件箱.md", "使用指南.md", ".import_state.json"}
@@ -34,12 +35,12 @@ def node_name(fn):
 
 def all_nodes():
     nodes = {}
-    for fn in os.listdir(VAULT_DIR):
+    for fn in os.listdir(KNOWLEDGE_DIR):
         if not fn.lower().endswith(".md"):
             continue
         if fn in SKIP:
             continue
-        p = os.path.join(VAULT_DIR, fn)
+        p = os.path.join(KNOWLEDGE_DIR, fn)
         try:
             with open(p, encoding="utf-8", errors="replace") as f:
                 c = f.read()
@@ -145,7 +146,7 @@ def register_backlinks(note_name, material):
     for name in material:
         if name.startswith(MOC_PREFIX):
             continue
-        p = os.path.join(VAULT_DIR, name + ".md")
+        p = os.path.join(KNOWLEDGE_DIR, name + ".md")
         if not os.path.exists(p):
             continue
         with open(p, encoding="utf-8") as f:
@@ -181,7 +182,7 @@ def main():
 
     if args.backlink:
         note = args.backlink
-        note_path = os.path.join(VAULT_DIR, note + ".md")
+        note_path = os.path.join(KNOWLEDGE_DIR, note + ".md")
         if not os.path.exists(note_path):
             print(f"[回链] {note}.md 不存在：请先写完文章再回链。")
             return
@@ -189,7 +190,7 @@ def main():
             note_content = f.read()
         material = [
             t for t in re.findall(r"\[\[([^\[\]]+?)\]\]", note_content)
-            if t != note and os.path.exists(os.path.join(VAULT_DIR, t + ".md"))
+            if t != note and os.path.exists(os.path.join(KNOWLEDGE_DIR, t + ".md"))
         ]
         register_backlinks(note, material)
         return
@@ -214,7 +215,7 @@ def main():
     for n, d in material:
         print(f"  (d{d}) {n}")
 
-    out_path = args.out or os.path.join(VAULT_DIR, f"综合笔记素材-{theme}.md")
+    out_path = args.out or os.path.join(KNOWLEDGE_DIR, f"综合笔记素材-{theme}.md")
     lines = [f"# 综合笔记素材：{theme}\n"]
     lines.append(f"种子：{seeds}")
     lines.append(f"邻域卡片（按链接距离）：{len(material)} 张\n")

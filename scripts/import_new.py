@@ -40,8 +40,9 @@ from datetime import datetime
 
 # ---------- 路径配置 ----------
 ICLOUD_DIR = r"F:/Fan-SJSS/iCloud/iCloudDrive/iCloud~is~workflow~my~workflows"
-VAULT_DIR = r"D:/AIwork/20260811-Fan-LingGan/灵感知识库"
-STATE_FILE = os.path.join(VAULT_DIR, ".import_state.json")
+VAULT_DIR = r"D:/AIwork/20260811-Fan-LingGan"  # vault 根
+KNOWLEDGE_DIR = os.path.join(VAULT_DIR, "灵感知识库")  # 原子卡/MOC/综合笔记所在
+STATE_FILE = os.path.join(KNOWLEDGE_DIR, ".import_state.json")
 SCHEMA_FILE = os.path.join(VAULT_DIR, "schema.md")
 LOG_FILE = os.path.join(VAULT_DIR, "log.md")
 
@@ -127,12 +128,12 @@ def make_title(text: str) -> str:
 
 
 def collect_existing_cards() -> list:
-    """扫描 vault，返回已有原子卡标题（排除 MOC/首页/收件箱/说明/骨架/raw-wiki 子目录）。"""
+    """扫描知识子目录，返回已有原子卡标题（排除 MOC/素材等非原子卡）。"""
     cards = []
-    for fn in os.listdir(VAULT_DIR):
+    for fn in os.listdir(KNOWLEDGE_DIR):
         if not fn.lower().endswith(".md"):
             continue
-        if fn in SKIP_FILES or fn.startswith("MOC-") or os.path.isdir(os.path.join(VAULT_DIR, fn)):
+        if fn.startswith("MOC-") or fn.startswith("综合笔记"):
             continue
         cards.append(fn[:-3])
     return cards
@@ -152,7 +153,7 @@ def find_related(text: str, cards: list, top: int = 3) -> list:
 
 def register_to_moc(moc: str, card_title: str):
     """把新卡链接追加到对应 MOC 列表末尾（去重）。"""
-    moc_path = os.path.join(VAULT_DIR, moc + ".md")
+    moc_path = os.path.join(KNOWLEDGE_DIR, moc + ".md")
     if not os.path.exists(moc_path):
         return
     with open(moc_path, encoding="utf-8") as f:
@@ -357,7 +358,7 @@ def refine_step(cfg: dict, raw: str, moc: str, related: list, schema: str, cards
         # 只保留确实存在的关联卡，避免 LLM 幻觉造成死链
         related = [
             r for r in related
-            if r in cards or os.path.exists(os.path.join(VAULT_DIR, r + ".md"))
+            if r in cards or os.path.exists(os.path.join(KNOWLEDGE_DIR, r + ".md"))
         ][:3]
         status = "已校"
         llm_used = True
@@ -378,7 +379,7 @@ def process_new_item(i: int, key: str, grp: list, cards: list, cfg: dict | None,
         title, fixed, extension, status, llm_used = make_title(raw), auto_fix(raw), [], "待校", False
 
     fname = f"灵感-{stamp}-{i:02d}.md"
-    fpath = os.path.join(VAULT_DIR, fname)
+    fpath = os.path.join(KNOWLEDGE_DIR, fname)
     print(f"  {i}. [{moc}] {title}" + (" (LLM)" if llm_used else " (规则)"))
     print(f"     源: {grp[0][0]} (+{len(grp)-1} 副本) -> {fname}")
     print(f"     关联: {related if related else '（仅 MOC）'}")

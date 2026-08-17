@@ -22,8 +22,15 @@ import re
 import sys
 from datetime import datetime
 
-VAULT_DIR = r"D:/AIwork/20260811-Fan-LingGan/灵感知识库"
+VAULT_DIR = r"D:/AIwork/20260811-Fan-LingGan"  # vault 根（Obsidian 打开的项目根）
+KNOWLEDGE_DIR = os.path.join(VAULT_DIR, "灵感知识库")  # 知识子目录：原子卡/MOC/综合笔记
 LOG_FILE = os.path.join(VAULT_DIR, "log.md")
+
+# 非知识目录：不参与扫描（工具/骨架/缓存/其他 vault 子目录）
+EXCLUDE_DIRS = {
+    "Fan-inspiration", "mcp_server", "briefs", "Clippings",
+    "__pycache__", ".git", ".obsidian", ".workbuddy", ".tmp",
+}
 
 # schema.md 类型表：每个类型必填的 frontmatter 键（顺序即序列化顺序）
 REQUIRED_FIELDS: dict[str, list[str]] = {
@@ -119,15 +126,19 @@ def extract_links(content: str) -> list[str]:
     return targets
 
 
-SKIP_FILES = {"log.md", "README.md"}  # 操作日志/目录说明，非卡片
+SKIP_FILES = {
+    "log.md", "README.md",  # 操作日志/目录说明
+    "AGENTS.md", "CHARTER.md", "WORK.md", "RUNLOG.md", "overview.md",  # 项目骨架
+    "清理清单.md", "灵感片段整理.md",  # 一次性整理文档
+}  # 非知识卡，不参与检查
 RAW_PREFIX = "raw"  # raw/ 子目录 = 原始材料（豁免卡片规范检查，仅查死链）
 
 
 def md_files() -> list[str]:
-    """递归扫描 vault 下全部 .md，返回相对路径（含 raw/、wiki/ 子目录）。"""
+    """递归扫描 vault（根 + raw/ + wiki/ + 灵感知识库/），返回相对路径。"""
     out = []
     for root, dirs, files in os.walk(VAULT_DIR):
-        dirs[:] = [d for d in dirs if not d.startswith(".")]
+        dirs[:] = [d for d in dirs if d not in EXCLUDE_DIRS]
         for fn in files:
             if fn.lower().endswith(".md") and os.path.basename(fn) not in SKIP_FILES:
                 rel = os.path.relpath(os.path.join(root, fn), VAULT_DIR)

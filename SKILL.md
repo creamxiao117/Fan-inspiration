@@ -29,10 +29,11 @@ description: 把 iPhone 语音转文字产生的灵感碎片（带错别字、�
 
 ## 配置（迁移必改）
 
-每个脚本顶部有路径常量，**迁移到其他机器只改这两处**：
+每个脚本顶部有路径常量，**迁移到其他机器只改**：
 
-- `scripts/import_new.py`：`ICLOUD_DIR`（语音源目录）、`VAULT_DIR`（vault 根）
-- `scripts/gen_synthesis.py` / `scripts/refine_pending.py` / `scripts/lint_vault.py` / `scripts/vault_mcp.py`：`VAULT_DIR`
+- `scripts/import_new.py`：`ICLOUD_DIR`（语音源目录）、`VAULT_DIR`（vault 根 = Obsidian 打开的项目根）
+- 其余脚本（`gen_synthesis.py` / `refine_pending.py` / `lint_vault.py` / `vault_mcp.py` / `clip_article.py`）：只改 `VAULT_DIR`
+- `KNOWLEDGE_DIR`（知识子目录，默认 `VAULT_DIR/灵感知识库`）自动跟随 `VAULT_DIR`，一般不用动
 - `scripts/vault_mcp.py`：也可用环境变量 `VAULT_DIR` 覆盖（优先于文件内常量）
 
 ⚠️ `import_new.py` 的 `MOC_KEYWORDS` 的 **key 必须和 vault 内 MOC 文件名严格一致**，否则分类链接断链。
@@ -135,17 +136,25 @@ python scripts/clip_article.py --md "粘贴的 markdown"                # 直接
 `wiki/sources/` 提炼卡（`type: sourcenote`，`source: [[raw/sources/原文]]` 回链）→ 连入 MOC。
 HTML→MD 用标准库 html.parser 实现（h1-h6/p/a/img/列表/引用/代码块/表格），零依赖。
 
-## 目录结构（vault）
+## 目录结构（vault 根 = 项目根）
 
 ```
-vault/
-├── purpose.md / schema.md        # 方向与规则（LLM/工具每次读取）
-├── 00-首页索引.md / 收件箱.md / 使用指南.md / log.md
-├── MOC-*.md / 原子卡 / 综合笔记-*
-├── raw/sources/                  # 外部文章剪藏（不可变，lint 豁免卡片规范）
-├── raw/assets/                   # 图片媒体
-└── wiki/sources/                 # 文章提炼卡（type: sourcenote）
+vault/  (Obsidian 打开项目根，如 D:/AIwork/20260811-Fan-LingGan)
+├── schema.md / purpose.md / 使用指南.md / 00-首页索引.md / 收件箱.md / log.md
+├── 灵感知识库/                # 知识主体：MOC / 原子卡 / 综合笔记（工具读写此目录）
+│   ├── MOC-*.md
+│   ├── 原子卡 / 综合笔记-*
+├── raw/sources/              # 外部文章剪藏（不可变，lint 豁免卡片规范）
+├── raw/assets/               # 图片媒体
+└── wiki/sources/             # 文章提炼卡（type: sourcenote）
 ```
+
+⚠️ **路径配置（2026-08-18 修正）**：Obsidian vault 根 = **项目根**，不是 `灵感知识库/`！
+脚本统一 `VAULT_DIR` = vault 根 + `KNOWLEDGE_DIR` = `VAULT_DIR/灵感知识库`：
+- `import_new.py` / `gen_synthesis.py`：卡片/MOC 读写用 `KNOWLEDGE_DIR`，schema/首页/收件箱/log 在 `VAULT_DIR`
+- `lint_vault.py`：递归扫 vault 根，排除 `EXCLUDE_DIRS`（Fan-inspiration/mcp_server/briefs/Clippings/缓存等），SKIP 项目骨架文档
+- `clip_article.py`：`raw/sources` 在 `VAULT_DIR` 下
+- 迁移到新机器：改 `VAULT_DIR`（根）即可，`KNOWLEDGE_DIR` 自动跟随
 
 ## 红线 / 已知坑
 
