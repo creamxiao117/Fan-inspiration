@@ -132,9 +132,39 @@ python scripts/clip_article.py --html "page.html"                    # 浏览器
 python scripts/clip_article.py --md "粘贴的 markdown"                # 直接存
 ```
 
-产出 `raw/sources/YYYY-MM-DD-标题.md`（`type: raw` 原始材料，不可变）。加工：读原文 → 提炼成
-`wiki/sources/` 提炼卡（`type: sourcenote`，`source: [[raw/sources/原文]]` 回链）→ 连入 MOC。
-HTML→MD 用标准库 html.parser 实现（h1-h6/p/a/img/列表/引用/代码块/表格），零依赖。
+产出 `raw/sources/YYYY-MM-DD-标题.md`（`type: raw` 原始材料，不可变）。Web Clipper 模板 `web-clipper-template.json`
+也可一键剪藏（path=raw/sources，frontmatter 对齐）。HTML→MD 用标准库 html.parser（h1-h6/p/a/img/列表/引用/代码块/表格），零依赖。
+
+### 阶段 7.5 · 剪藏文章提炼内化（sourcenote 流程，2026-08-18 固化）
+
+对 `raw/sources/` 下**没有对应提炼卡**的文章（`wiki/sources/` 下无同名 sourcenote），按以下标准提炼：
+
+1. 读原文（长文/视频转录稿）→ 提取 3-6 条核心观点（保留原意、压缩冗余）
+2. 写入 `wiki/sources/<标题>.md`：
+   ```yaml
+   ---
+   type: sourcenote
+   title: <语义标题>
+   tags: [相关标签]
+   date: YYYY-MM-DD
+   source: [[raw/sources/<原文文件名>]]   # 回链原文，必填
+   url: <原文 URL>
+   ---
+   # 标题
+   ## 核心观点（3-6 条）
+   ## 与知识库的连接（[[相关原子卡]]、[[MOC-xxx]]，至少 2 张）
+   ## 延伸（1-2 条，与自身/知识库的呼应）
+   ```
+3. 首页 `00-首页索引.md`「文章提炼」区块登记（幂等）
+4. `log.md` 追加一行；lint 自动识别 `sourcenote` 类型（必填 type/title/source）
+
+### 阶段 7.6 · 灵感碎片扩写标准（150 字 + 补链，每日晨检自动执行）
+
+每张新导入/待校的原子卡，AI 加工标准：
+1. 读原始语音 → 语义纠错（保留原意）
+2. 「延伸」节扩写为**约 150 字的实质内容**：保留语音原意 + 补解读/例子/落地
+3. 检索库内已有卡片（MCP search 或读 灵感知识库/）→ 补 `[[链接]]`（至少 2 张相关卡 + MOC）
+4. `status: 已校`；`log.md` 记录
 
 ## 目录结构（vault 根 = 项目根）
 
