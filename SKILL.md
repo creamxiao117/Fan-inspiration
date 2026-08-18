@@ -166,6 +166,32 @@ python scripts/clip_article.py --md "粘贴的 markdown"                # 直接
 3. 检索库内已有卡片（MCP search 或读 灵感知识库/）→ 补 `[[链接]]`（至少 2 张相关卡 + MOC）
 4. `status: 已校`；`log.md` 记录
 
+### 阶段 7.7 · 图谱可视化规范（Graph 配色，2026-08-18 固化）
+
+Obsidian 关系图谱按 tag 分组上色（`.obsidian/graph.json` 的 `colorGroups`），一眼区分骨架/索引/主题/待加工。
+
+**tag 规范**（原子卡必须带主题 tag，与 MOC 一一对应）：
+
+| MOC 文件名 | 主题 tag | 图谱色 |
+|---|---|---|
+| MOC-自我认知与心智成长 | `自我认知` | 蓝 `#185FA5` |
+| MOC-职业工作方法商业 | `职业商业` | 绿 `#3B6D11` |
+| MOC-觉察冥想情绪 | `觉察冥想` | teal `#0F6E56` |
+| MOC-哲学知识整合 | `哲学整合` | 紫 `#534AB7` |
+| MOC-兴趣体验表达 | `兴趣表达` | 橙 `#D85A30` |
+
+**其余分组**：`tag:#骨架` 暗红（骨架文档，勿动）· `tag:#MOC` 墨紫 · `tag:#综合笔记` 绿（产出端）· `["status":"待校"]` 橙黄（警示）。
+
+**执行要点**：
+- `import_new.py` 的 `MOC_TAG` 映射已内置——新卡自动带主题 tag，无需手工
+- 旧卡补 tag：按 MOC 归属把主题 tag 加进 frontmatter（8 张 `[灵感, 已校]` 旧卡已于 2026-08-18 补齐）
+- 骨架文档统一 `tags: [骨架]`（AGENTS/CHARTER/WORK/RUNLOG/log/overview/schema/使用指南/清理清单/灵感片段整理/briefs）
+- 配色写入 `.obsidian/graph.json`（9 组 colorGroups，后定义覆盖先定义：综合笔记在主题色之后）
+
+**已知坑**：
+- ⚠️ Obsidian 运行中退出时会**覆盖** graph.json——改配置前先关 Obsidian，或改后重启
+- ⚠️ 新卡主题 tag 必须用表中 5 个值之一，否则图谱中不染色（孤立白点）
+
 ## 目录结构（vault 根 = 项目根）
 
 ```

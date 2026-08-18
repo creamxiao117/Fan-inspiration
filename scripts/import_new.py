@@ -69,6 +69,15 @@ MOC_KEYWORDS = {
 }
 DEFAULT_MOC = "MOC-自我认知与心智成长"
 
+# MOC 文件名 → 图谱主题 tag（与 .obsidian/graph.json 的 colorGroups 配色一一对应）
+MOC_TAG = {
+    "MOC-自我认知与心智成长": "自我认知",
+    "MOC-觉察冥想情绪": "觉察冥想",
+    "MOC-哲学知识整合": "哲学整合",
+    "MOC-职业工作方法商业": "职业商业",
+    "MOC-兴趣体验表达": "兴趣表达",
+}
+
 # ---------- vault 内非卡片文件（不参与关联匹配）----------
 SKIP_FILES = {"00-首页索引.md", "收件箱.md", "使用指南.md", "schema.md", "log.md",
               "AGENTS.md", "CHARTER.md", "WORK.md", "RUNLOG.md"}
@@ -304,10 +313,11 @@ def build_card(title, raw, fixed, moc, created, related, extension, status, src)
     moc_line = f"- [[{moc}]]"
     rel_block = (rel_lines + "\n" + moc_line) if rel_lines else moc_line
     ext_lines = "\n".join(f"- {e}" for e in extension) if extension else "- "
+    theme = MOC_TAG.get(moc, "自我认知")  # 图谱主题色（与 graph.json 配色一致）
     return f"""---
 type: atom
 title: {title}
-tags: [灵感, {"已校" if status == "已校" else "待校"}]
+tags: [灵感, {theme}, {"已校" if status == "已校" else "待校"}]
 date: {created[:10]}
 sources: [{src}]
 status: {status}
